@@ -1,8 +1,0 @@
-com\yourname\banking\model\Account.class
-com\yourname\banking\App.class
-com\yourname\banking\dao\AccountDAO.class
-com\yourname\banking\dao\TransactionDAO.class
-com\yourname\banking\dao\DBConnection.class
-com\yourname\banking\dao\CustomerDAO.class
-com\yourname\banking\model\Customer.class
-com\yourname\banking\model\Transaction.class
