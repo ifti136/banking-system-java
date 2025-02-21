@@ -1,5 +1,3 @@
-# banking-system-java
-A Java OOP Banking System with GUI and MySQL Database
 # 🏦 Banking System Management
 
 A **Java-based Banking System** with a GUI that allows customers and admins to manage banking operations efficiently. Built using **Swing for GUI, MySQL for database, and MVC architecture**.
