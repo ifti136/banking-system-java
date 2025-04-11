@@ -6,7 +6,7 @@ import com.yourname.banking.model.Transaction;
 import com.yourname.banking.service.CustomerService;
 import com.yourname.banking.service.AccountService;
 import com.yourname.banking.service.TransactionService;
-import com.yourname.banking.util.Validator;
+//import com.yourname.banking.util.Validator;
 import com.yourname.banking.util.DialogUtil;
 import com.yourname.banking.util.AnimationUtil;
 import com.formdev.flatlaf.FlatDarkLaf;
@@ -14,6 +14,9 @@ import com.formdev.flatlaf.FlatLightLaf;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.table.DefaultTableModel;
+//import javax.swing.table.TableCellRenderer;
+//import javax.swing.table.DefaultCellEditor;
 import java.awt.*;
 import java.awt.event.ActionListener;
 import java.util.List;
@@ -37,7 +40,7 @@ public class AdminPanelGUI extends JFrame {
     public AdminPanelGUI() {
         // Frame setup
         setTitle("Admin Panel");
-        setSize(700, 600);
+        setSize(800, 600);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout(10, 10));
         setLocationRelativeTo(null);
@@ -54,24 +57,19 @@ public class AdminPanelGUI extends JFrame {
         titleLabel.setForeground(PRIMARY_COLOR);
         titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         mainPanel.add(titleLabel);
-
-        // Add space below title
         mainPanel.add(Box.createRigidArea(new Dimension(0, 20)));
 
         // Buttons panel
         JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout(new GridLayout(10, 1, 10, 10));
+        buttonPanel.setLayout(new GridLayout(7, 1, 10, 10));
         mainPanel.add(buttonPanel);
 
-        // Add buttons
+        // Add buttons with updated options
         addButton(buttonPanel, "Add Customer", e -> addCustomer());
-        addButton(buttonPanel, "Delete Customer", e -> deleteCustomer());
-        addButton(buttonPanel, "Get Customer By ID", e -> getCustomerById());
         addButton(buttonPanel, "Get All Customers", e -> getAllCustomers());
         addButton(buttonPanel, "Create Account", e -> createAccount());
         addButton(buttonPanel, "Delete Account", e -> deleteAccount());
         addButton(buttonPanel, "Get Accounts By Customer ID", e -> getAccountsByCustomerId());
-        addButton(buttonPanel, "Retrieve Transaction History Of Customer", e -> viewTransactionHistory());
         addButton(buttonPanel, "Retrieve All Transactions", e -> viewAllTransactions());
         addButton(buttonPanel, "Exit", e -> dispose());
 
@@ -151,7 +149,7 @@ public class AdminPanelGUI extends JFrame {
                         DialogUtil.showCustomMessageDialog(
                                 this,
                                 "Success",
-                                String.format("Customer added successfully.\nCustomer ID: %s", customer.getId()),
+                                "Customer added successfully.\nCustomer ID: " + customer.getId(),
                                 "OK",
                                 UIManager.getIcon("OptionPane.informationIcon"));
                     } else {
@@ -239,99 +237,177 @@ public class AdminPanelGUI extends JFrame {
         return true;
     }
 
-    // Method to delete a customer
-    private void deleteCustomer() {
-        String customerId = DialogUtil.showInputDialog(
-                this,
-                "Delete Customer",
-                "Enter Customer ID to delete:");
-
-        if (customerId != null && !customerId.trim().isEmpty()) {
-            if (Validator.isValidCustomerId(customerId) && customerService.deleteCustomer(customerId)) {
-                DialogUtil.showCustomMessageDialog(
-                        this,
-                        "Success",
-                        "Customer deleted successfully.",
-                        "OK",
-                        UIManager.getIcon("OptionPane.informationIcon"));
-            } else {
-                DialogUtil.showCustomMessageDialog(
-                        this,
-                        "Error",
-                        "Failed to delete customer.",
-                        "OK",
-                        UIManager.getIcon("OptionPane.errorIcon"));
-            }
-        }
-    }
-
-    // Method to retrieve a customer by ID
-    private void getCustomerById() {
-        String customerId = DialogUtil.showInputDialog(
-                this,
-                "View Customer",
-                "Enter Customer ID:");
-
-        if (customerId != null && !customerId.trim().isEmpty()) {
-            Optional<Customer> customer = customerService.getCustomerById(customerId);
-            if (customer.isPresent()) {
-                String details = String.format("<html>" +
-                        "Customer ID: %s<br>" +
-                        "Name: %s<br>" +
-                        "Phone: %s<br>" +
-                        "Address: %s<br>" +
-                        "Email: %s" +
-                        "</html>",
-                        customer.get().getId(),
-                        customer.get().getName(),
-                        customer.get().getPhone(),
-                        customer.get().getAddress(),
-                        customer.get().getEmail());
-
-                DialogUtil.showCustomMessageDialog(
-                        this,
-                        "Customer Details",
-                        details,
-                        "OK",
-                        UIManager.getIcon("OptionPane.informationIcon"));
-            } else {
-                DialogUtil.showCustomMessageDialog(
-                        this,
-                        "Not Found",
-                        "Customer not found.",
-                        "OK",
-                        UIManager.getIcon("OptionPane.warningIcon"));
-            }
-        }
-    }
-
     // Method to retrieve all customers
     private void getAllCustomers() {
-        List<Customer> customers = customerService.getAllCustomers();
-        if (customers.isEmpty()) {
-            DialogUtil.showCustomMessageDialog(
-                    this,
-                    "No Data",
-                    "No customers found.",
-                    "OK",
-                    UIManager.getIcon("OptionPane.informationIcon"));
-            return;
+        JDialog dialog = new JDialog(this, "Customer List", true);
+        dialog.setSize(900, 500);
+        dialog.setLocationRelativeTo(this);
+        dialog.setLayout(new BorderLayout(10, 10));
+
+        // Search panel
+        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JTextField searchField = new JTextField(20);
+        JButton searchButton = new JButton("Search");
+        styleButton(searchButton);
+        searchPanel.add(new JLabel("Search by Customer ID: "));
+        searchPanel.add(searchField);
+        searchPanel.add(searchButton);
+        dialog.add(searchPanel, BorderLayout.NORTH);
+
+        // Table panel
+        String[] columnNames = { "Customer ID", "Name", "Phone", "Address", "Email", "Actions" };
+        DefaultTableModel model = new DefaultTableModel(columnNames, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+
+        JTable table = new JTable(model);
+        table.setFillsViewportHeight(true);
+        table.setRowHeight(30);
+
+        // Add action buttons panel
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JButton editButton = new JButton("Edit");
+        JButton deleteButton = new JButton("Delete");
+        styleButton(editButton);
+        styleButton(deleteButton);
+        buttonPanel.add(editButton);
+        buttonPanel.add(deleteButton);
+        dialog.add(buttonPanel, BorderLayout.SOUTH);
+
+        // Load all customers initially
+        loadCustomersIntoTable(model, null);
+
+        // Search button action
+        searchButton.addActionListener(e -> {
+            String searchId = searchField.getText().trim();
+            loadCustomersIntoTable(model, searchId);
+        });
+
+        // Edit button action
+        editButton.addActionListener(e -> {
+            int selectedRow = table.getSelectedRow();
+            if (selectedRow >= 0) {
+                String customerId = (String) table.getValueAt(selectedRow, 0);
+                editCustomer(customerId);
+                loadCustomersIntoTable(model, null);
+            } else {
+                JOptionPane.showMessageDialog(this, "Please select a customer to edit", "No Selection",
+                        JOptionPane.WARNING_MESSAGE);
+            }
+        });
+
+        // Delete button action
+        deleteButton.addActionListener(e -> {
+            int selectedRow = table.getSelectedRow();
+            if (selectedRow >= 0) {
+                String customerId = (String) table.getValueAt(selectedRow, 0);
+                if (deleteCustomer(customerId)) {
+                    model.removeRow(selectedRow);
+                }
+            } else {
+                JOptionPane.showMessageDialog(this, "Please select a customer to delete", "No Selection",
+                        JOptionPane.WARNING_MESSAGE);
+            }
+        });
+
+        dialog.add(new JScrollPane(table), BorderLayout.CENTER);
+        dialog.setVisible(true);
+    }
+
+    private void loadCustomersIntoTable(DefaultTableModel model, String searchId) {
+        model.setRowCount(0);
+        List<Customer> customers;
+
+        if (searchId != null && !searchId.isEmpty()) {
+            Optional<Customer> customer = customerService.getCustomerById(searchId);
+            customers = customer.map(List::of).orElse(List.of());
+        } else {
+            customers = customerService.getAllCustomers();
         }
 
-        String[] columnNames = { "Customer ID", "Name", "Phone", "Address", "Email" };
-        Object[][] data = new Object[customers.size()][5];
-        for (int i = 0; i < customers.size(); i++) {
-            Customer customer = customers.get(i);
-            data[i] = new Object[] {
+        for (Customer customer : customers) {
+            model.addRow(new Object[] {
                     customer.getId(),
                     customer.getName(),
                     customer.getPhone(),
                     customer.getAddress(),
-                    customer.getEmail()
-            };
+                    customer.getEmail(),
+                    "Actions"
+            });
         }
+    }
 
-        showTableDialog("Customer List", columnNames, data);
+    private void editCustomer(String customerId) {
+        Optional<Customer> customerOpt = customerService.getCustomerById(customerId);
+        if (customerOpt.isPresent()) {
+            Customer customer = customerOpt.get();
+            showEditCustomerDialog(customer);
+        }
+    }
+
+    private void showEditCustomerDialog(Customer customer) {
+        JDialog dialog = new JDialog(this, "Edit Customer", true);
+        dialog.setSize(400, 300);
+        dialog.setLocationRelativeTo(this);
+
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBorder(new EmptyBorder(20, 20, 20, 20));
+
+        JTextField nameField = new JTextField(customer.getName());
+        JTextField phoneField = new JTextField(customer.getPhone());
+        JTextField addressField = new JTextField(customer.getAddress());
+        JTextField emailField = new JTextField(customer.getEmail());
+
+        addFieldToPanel(panel, "Name:", nameField);
+        addFieldToPanel(panel, "Phone:", phoneField);
+        addFieldToPanel(panel, "Address:", addressField);
+        addFieldToPanel(panel, "Email:", emailField);
+
+        JPanel buttonPanel = new JPanel(new FlowLayout());
+        JButton saveButton = new JButton("Save");
+        JButton cancelButton = new JButton("Cancel");
+
+        styleButton(saveButton);
+        styleButton(cancelButton);
+
+        saveButton.addActionListener(e -> {
+            customer.setName(nameField.getText().trim());
+            customer.setPhone(phoneField.getText().trim());
+            customer.setAddress(addressField.getText().trim());
+            customer.setEmail(emailField.getText().trim());
+
+            if (customerService.updateCustomer(customer)) {
+                dialog.dispose();
+                DialogUtil.showCustomMessageDialog(
+                        this,
+                        "Success",
+                        "Customer details updated successfully.",
+                        "OK",
+                        UIManager.getIcon("OptionPane.informationIcon"));
+                // Refresh the customer list
+                getAllCustomers();
+            } else {
+                DialogUtil.showCustomMessageDialog(
+                        this,
+                        "Error",
+                        "Failed to update customer details.",
+                        "OK",
+                        UIManager.getIcon("OptionPane.errorIcon"));
+            }
+        });
+
+        cancelButton.addActionListener(e -> dialog.dispose());
+
+        buttonPanel.add(saveButton);
+        buttonPanel.add(cancelButton);
+        panel.add(buttonPanel);
+
+        dialog.add(panel);
+        dialog.setVisible(true);
     }
 
     // Method to create a new account
@@ -477,69 +553,74 @@ public class AdminPanelGUI extends JFrame {
         }
     }
 
-    // Method to view transaction history for a customer
-    private void viewTransactionHistory() {
-        String customerId = DialogUtil.showInputDialog(
-                this,
-                "View Transactions",
-                "Enter Customer ID:");
+    // Method to view all transactions
+    private void viewAllTransactions() {
+        JDialog dialog = new JDialog(this, "All Transactions", true);
+        dialog.setSize(900, 500);
+        dialog.setLocationRelativeTo(this);
+        dialog.setLayout(new BorderLayout(10, 10));
 
-        if (customerId != null && !customerId.trim().isEmpty()) {
-            List<Transaction> transactions = transactionService.getTransactionsByCustomerId(customerId);
-            if (transactions.isEmpty()) {
-                DialogUtil.showCustomMessageDialog(
-                        this,
-                        "No Data",
-                        "No transactions found for this customer.",
-                        "OK",
-                        UIManager.getIcon("OptionPane.warningIcon"));
-                return;
+        // Search panel
+        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JTextField searchField = new JTextField(20);
+        JButton searchButton = new JButton("Search");
+        styleButton(searchButton);
+        searchPanel.add(new JLabel("Search by Transaction ID: "));
+        searchPanel.add(searchField);
+        searchPanel.add(searchButton);
+        dialog.add(searchPanel, BorderLayout.NORTH);
+
+        // Table setup
+        String[] columnNames = { "Transaction ID", "Account ID", "Amount", "Type", "Timestamp" };
+        DefaultTableModel model = new DefaultTableModel(columnNames, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
             }
+        };
 
-            String[] columnNames = { "Transaction ID", "Account ID", "Amount", "Type", "Timestamp" };
-            Object[][] data = new Object[transactions.size()][5];
-            for (int i = 0; i < transactions.size(); i++) {
-                Transaction transaction = transactions.get(i);
-                data[i] = new Object[] {
+        JTable table = new JTable(model);
+        table.setFillsViewportHeight(true);
+        table.setRowHeight(30);
+
+        // Load all transactions initially
+        loadTransactionsIntoTable(model, null);
+
+        // Search button action
+        searchButton.addActionListener(e -> {
+            String searchId = searchField.getText().trim();
+            loadTransactionsIntoTable(model, searchId);
+        });
+
+        dialog.add(new JScrollPane(table), BorderLayout.CENTER);
+        dialog.setVisible(true);
+    }
+
+    private void loadTransactionsIntoTable(DefaultTableModel model, String searchId) {
+        model.setRowCount(0);
+        if (searchId != null && !searchId.isEmpty()) {
+            Transaction transaction = transactionService.getTransactionById(searchId);
+            if (transaction != null) {
+                model.addRow(new Object[] {
                         transaction.getId(),
                         transaction.getAccountId(),
                         String.format("$%.2f", transaction.getAmount()),
                         transaction.getTransactionType(),
                         transaction.getTimestamp()
-                };
+                });
             }
-
-            showTableDialog("Transaction History for Customer: " + customerId, columnNames, data);
+        } else {
+            List<Transaction> transactions = transactionService.getAllTransactions();
+            for (Transaction transaction : transactions) {
+                model.addRow(new Object[] {
+                        transaction.getId(),
+                        transaction.getAccountId(),
+                        String.format("$%.2f", transaction.getAmount()),
+                        transaction.getTransactionType(),
+                        transaction.getTimestamp()
+                });
+            }
         }
-    }
-
-    // Method to retrieve all transactions
-    private void viewAllTransactions() {
-        List<Transaction> transactions = transactionService.getAllTransactions();
-        if (transactions.isEmpty()) {
-            DialogUtil.showCustomMessageDialog(
-                    this,
-                    "No Data",
-                    "No transactions found in the system.",
-                    "OK",
-                    UIManager.getIcon("OptionPane.warningIcon"));
-            return;
-        }
-
-        String[] columnNames = { "Transaction ID", "Account ID", "Amount", "Type", "Timestamp" };
-        Object[][] data = new Object[transactions.size()][5];
-        for (int i = 0; i < transactions.size(); i++) {
-            Transaction transaction = transactions.get(i);
-            data[i] = new Object[] {
-                    transaction.getId(),
-                    transaction.getAccountId(),
-                    String.format("$%.2f", transaction.getAmount()),
-                    transaction.getTransactionType(),
-                    transaction.getTimestamp()
-            };
-        }
-
-        showTableDialog("All Transactions", columnNames, data);
     }
 
     private void showTableDialog(String title, String[] columnNames, Object[][] data) {
@@ -628,5 +709,34 @@ public class AdminPanelGUI extends JFrame {
         } catch (Exception ex) {
             ex.printStackTrace();
         }
+    }
+
+    private boolean deleteCustomer(String customerId) {
+        int confirm = JOptionPane.showConfirmDialog(
+                this,
+                "Are you sure you want to delete this customer?",
+                "Confirm Delete",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE);
+
+        if (confirm == JOptionPane.YES_OPTION) {
+            if (customerService.deleteCustomer(customerId)) {
+                DialogUtil.showCustomMessageDialog(
+                        this,
+                        "Success",
+                        "Customer deleted successfully.",
+                        "OK",
+                        UIManager.getIcon("OptionPane.informationIcon"));
+                return true;
+            } else {
+                DialogUtil.showCustomMessageDialog(
+                        this,
+                        "Error",
+                        "Failed to delete customer.",
+                        "OK",
+                        UIManager.getIcon("OptionPane.errorIcon"));
+            }
+        }
+        return false;
     }
 }
